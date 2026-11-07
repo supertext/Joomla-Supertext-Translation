@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## Unreleased
 
+- Added: the Supertext support form is linked in the README, the user guide and GitHub's "New issue" page.
 - Changed: tested with Joomla 6.2 (the demo and CI now run Joomla 6.2.0 instead of 6.1.4); the unit tests also run on PHP 8.5.
 - Added: **Translation review** on/off per content language (*System → Manage → Plugins → System - Supertext Translation → Languages*, a switch in each language's row, off by default): translations into a language with *Translation review* on go through Supertext's review service (Supertext Localization Review), where customers and Supertext linguists correct them on the website with a Chrome extension; corrections come back into Joomla with the next translation (*Overwrite existing translations*), and texts translated before keep their (reviewed) wording. Same API key, billing, languages and messages; other languages keep going directly to Supertext, as do the API key check and the version reports. New setting *Review service URL* (defaults to Supertext's review service; empty turns review off for every language; the environment variable `SUPERTEXT_REVIEW_URL` wins). Existing sites start with review off. All four interface languages.
 - Added: requests to Supertext name the plugin's version in the User-Agent (`Joomla-Supertext-Translation/<version>`).

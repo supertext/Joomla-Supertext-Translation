@@ -145,3 +145,7 @@ Problems are listed in red in the dialog, per article and language; the other la
 
 - Select several articles in the list to translate them in one go.
 - Translations are machine translations of high quality, but always have a quick look before publishing: product names, prices and dates deserve a second glance.
+
+## Support
+
+Questions, problems or ideas: use the [Supertext support form](https://integrations.supertext.com/en/support?platform=joomla). Mention the version of Joomla and of the plugin, what you did and what you expected; an error message helps a lot. You get an answer by email, in your language.
