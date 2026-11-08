@@ -249,6 +249,31 @@ BASE_URL=http://127.0.0.1:8092 DEMO_ADMIN_EMAIL=… DEMO_ADMIN_PASSWORD=… \
 
 Start from a database without translations of the sample articles. The script also exports the second sample article as HTML, fills in the French sample translations and imports the file (`export-dialog`, `import-dialog`, `import-summary`). The script saves the settings twice (the key, then on the Languages tab `fr-FR` → `fr-CH`, formal) and shows the ping address with the public demo's URL (`PUBLIC_URL`) instead of the local one.
 
+## Demo movie
+
+`docs/images/demo.gif` (shown at the top of the README) is recorded by `tests/docs/movie.mjs` with Supertext's movie kit (`tests/docs/movie/`: Playwright screencast → ffmpeg; intro and outro cards, captions, cursor; Inter font under the SIL Open Font License in `movie/assets/fonts/`). Like the screenshots, it needs a **fresh** demo whose plugin talks to the stand-in API, `ffmpeg` and, for the voice, Piper:
+
+```bash
+pip install piper-tts                       # the voice; without it (or with MOVIE_VOICE=0) the movie is silent
+cd tests/docs && npm install
+npm run stand-in &                          # http://127.0.0.1:8765/v1/
+# fresh demo as for the screenshots (SUPERTEXT_API_ENDPOINT/SUPERTEXT_REPORT_URL at the stand-in), API key saved
+BASE_URL=http://127.0.0.1:8092 DEMO_EDITOR_EMAIL=… DEMO_EDITOR_PASSWORD=… npm run movie
+```
+
+About 40 seconds, 1280×720, an English voice and English captions: the demo editor (Manager) opens the English article *Swiss chocolate, shipped worldwide*, clicks **Supertext**, keeps German and French, clicks **Translate** (the waiting time is cut) and opens the new, unpublished German article from the results. The script writes the GIF (800 px, 12 fps, keep it under 3 MB) to `docs/images/demo.gif` and the MP4 to `tests/docs/movie/out/Joomla-Supertext-Translation.mp4` (git-ignored; `MOVIE_OUT` changes the path). The MP4 is not committed; the GIF is silent. The voice model (63 MB, pinned revision, checked by SHA-256) is downloaded once into `tests/docs/movie/voice-cache/` (git-ignored, never committed); the time spent generating speech is cut from the movie. Both scripts hide Joomla's *Take a Tour* and *Post Installation Messages* header buttons, which cover the page title at 1280 px. Re-record it in the same commit when the Supertext dialog changes.
+
+**Install and configuration movie** (`tests/docs/movie-install.mjs`, `npm run movie:install`): the same kit, voice and look, for administrators. It needs a fresh demo **without** this plugin (Joomla, the language packs and `supertext:demo-setup` with `DEMO_*`, but `plg_system_supertext` not installed), no `SUPERTEXT_API_KEY`, and the package from `./build.sh`; it signs in as the demo **administrator**:
+
+```bash
+./build.sh
+cd tests/docs && BASE_URL=http://127.0.0.1:8092 DEMO_ADMIN_EMAIL=… DEMO_ADMIN_PASSWORD=… npm run movie:install
+```
+
+About 80 seconds: a terminal (`kit.terminal()`) with `git clone` and `./build.sh` (or the zip from the Releases page), then the back end: *System → Install → Extensions → Upload Package File* with the zip, the site's content languages (*System → Content Languages*), *System → Manage → Plugins* → *System - Supertext Translation*, *Status* Enabled and *Save*, where the key comes from (supertext.com → Integrations → API; create an account at supertext.com), **Modify**, the fake key `st-demo-0000-0000-0000` (the stand-in accepts any key), *Save* with *API key checked: the connection to Supertext works.*, the *Languages* tab (French → *French (Switzerland) (fr-CH)*, *Translation review* left off), *Save*, and the **Supertext** button in *Content → Articles*. The ping address on the settings page shows the public demo's URL (`PUBLIC_URL`). No GIF; the MP4 goes to `tests/docs/movie/out/Joomla-Supertext-Translation-install.mp4` (git-ignored, not committed; `MOVIE_OUT` changes the path). Record it before the demo movie when you use one site for both (it installs the plugin and saves a key). Re-record it when the installation steps or the plugin's settings change.
+
+Voice: Piper voice “alba” (en_GB), trained on a dataset from the University of Edinburgh's Centre for Speech Technology Research, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+
 ## Code quality and security checks
 
 - **Checks** workflow (`.github/workflows/checks.yml`): actionlint and zizmor lint the workflows on every push and pull request; dependency review fails a pull request that adds a package with a known vulnerability (moderate or worse). Third-party actions are pinned to commit SHAs (Dependabot keeps them current), the default token is read-only and checkouts don't keep credentials. Locally: `pip install actionlint-py zizmor`, then `actionlint` and `zizmor .github/workflows` in the repo root.

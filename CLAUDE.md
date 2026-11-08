@@ -86,6 +86,7 @@ Lessons from the live API, apply them here: header `Authorization: Supertext-Aut
 
 - Before committing: `composer test`, PHP lint, `./build.sh`, PHPStan (`vendor/bin/phpstan analyse` with a Joomla in `.joomla/`, see `docs/DEVELOPER.md`). CI also installs Joomla and runs a translation against the stand-in.
 - Test UI changes in a local Joomla with the plugin symlinked (see `docs/DEVELOPER.md` → Local development) and regenerate the screenshots they affect.
+- Demo movie (`docs/images/demo.gif` in the README): `tests/docs/movie.mjs` (`npm run movie`, see "Demo movie" in `docs/DEVELOPER.md`); re-record it when the Supertext dialog changes. Install and configuration movie (MP4 only, not committed): `tests/docs/movie-install.mjs` (`npm run movie:install`); re-record it when the installation steps or the plugin's settings change.
 - New settings go in `plugin/supertext.xml`, all five language files (`en-GB`, `de-DE`, `de-CH`, `fr-FR`, `it-IT`) **and** the settings table in `docs/INSTALLATION.md`.
 - *Translation review* (per content language) lives in the Languages tab's settings (`review`, `Field\LanguagemappingField`, read by `Api\Languages::settings()`); `ArticleTranslator` picks `SupertextClient::forReview()`; the review service's address is the setting `review_url` / `SUPERTEXT_REVIEW_URL` (default `SupertextClient::REVIEW_URL`).
 - Translated fields live in `plugin/src/Service/ArticleTranslator.php`; keep "What is translated" in `docs/DEVELOPER.md` and the lists in `docs/USER_GUIDE.md` in sync.

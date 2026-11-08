@@ -46,7 +46,7 @@ The plugin settings link to both pages, next to the API key field.
 
 1. Set **Status** to *Enabled*.
 2. Click **Modify** next to *Supertext API key*, paste your key and click **Save**. You can paste it exactly as Supertext shows it, with the leading `Supertext-Auth-Key`, or without it.
-3. Saving checks the key with Supertext right away (a cost-free call, nothing is translated) and shows the result at the top of the page and under **API key check**: *API key checked: the connection to Supertext works.* means everything is in place. **Test connection** runs the same check again at any time.
+3. Saving checks the key with Supertext right away (a cost-free call, nothing is translated) and shows the result at the top of the page and under **API key check**: *API key checked: the connection to Supertext works.* means everything is in place. **Test connection** runs the same check again at any time. (If you enable the plugin and enter the key in the same save, the plugin isn't running yet during that save: click **Test connection**, or save once more.)
 
 <img src="images/plugin-settings.png" alt="Plugin settings: Supertext API key (hidden), API key check with the message API key checked: the connection to Supertext works. and its time, the Test connection button, API environment Live, an empty custom API base URL, the review service URL with Supertext's review service, new translations Unpublished, translate custom fields Yes, Send version information to Supertext Yes with what it sends and the ping address" width="720">
 

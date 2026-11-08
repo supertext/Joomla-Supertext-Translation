@@ -2,6 +2,8 @@
 
 Translate Joomla articles into your site's other languages with **Supertext AI**, straight from the Articles list or the article editor.
 
+![Demo: an editor opens an English article in the Joomla administrator, clicks Supertext, keeps German and French, clicks Translate and opens the new German article “Schweizer Schokolade, weltweit versandt”](docs/images/demo.gif)
+
 Select articles, click **Supertext**, tick the languages and click **Translate**. The plugin translates each article and saves the result as a linked translation (Joomla's *Multilingual Associations*), unpublished, so an editor can review it before it goes live.
 
 - Works with Joomla's own multilingual setup: content languages and associations
