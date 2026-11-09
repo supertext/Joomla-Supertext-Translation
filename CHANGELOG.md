@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## Unreleased
 
+- Fixed: in Joomla 6.2 the **Supertext** button in the Articles list stayed disabled after selecting articles (Joomla 6.2 enables list buttons by a class, not the `disabled` attribute the plugin set). Found by the new end-to-end test against the real Supertext API.
 - Fixed: opening the plugin's settings right after installing it, while it is still disabled, failed with *Call to a member function get() on null*. The page now shows the stored settings, so you can enable the plugin and enter the key there, as the installation guide says.
 - Added: demo movie in the README (`docs/images/demo.gif`): an editor translates an article into German and French and opens the German article. Recorded by `tests/docs/movie.mjs` against the demo and the stand-in API; the MP4 version has an English voice (Piper voice “alba”, CC BY 4.0). Install and configuration movie (MP4, not committed): `tests/docs/movie-install.mjs` (`npm run movie:install`) shows an administrator building and uploading the package, enabling the plugin, entering the API key and checking the Languages tab.
 - Added: the Supertext support form is linked in the README, the user guide and GitHub's "New issue" page.

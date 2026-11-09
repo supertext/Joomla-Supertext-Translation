@@ -346,8 +346,11 @@
   };
 
   document.addEventListener('click', (event) => {
-    if (event.target.closest('.supertext-open')) {
+    const button = event.target.closest('.supertext-open');
+    if (button) {
       event.preventDefault();
+      // In the Articles list the button waits for a selection (Joomla 6.2 marks that with a class, earlier versions with the attribute).
+      if (button.disabled || button.classList.contains('disabled') || button.getAttribute('aria-disabled') === 'true') return;
       open();
     }
   });
