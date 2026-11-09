@@ -20,7 +20,6 @@ use Joomla\CMS\Event\PageCache\IsExcludedEvent;
 use Joomla\CMS\Event\Plugin\AjaxEvent;
 use Joomla\CMS\Http\HttpFactory;
 use Joomla\CMS\HTML\HTMLHelper;
-use Joomla\CMS\Language\LanguageHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Plugin\CMSPlugin;
 use Joomla\CMS\Session\Session;
@@ -32,6 +31,8 @@ use Joomla\Database\DatabaseAwareTrait;
 use Joomla\Event\SubscriberInterface;
 use Joomla\Registry\Registry;
 use Supertext\Plugin\System\Supertext\Api\CallableTransport;
+use Supertext\Plugin\System\Supertext\Api\FileTransfer;
+use Supertext\Plugin\System\Supertext\Api\FileTransferException;
 use Supertext\Plugin\System\Supertext\Api\Languages;
 use Supertext\Plugin\System\Supertext\Api\Reporting;
 use Supertext\Plugin\System\Supertext\Api\SupertextClient;
@@ -245,6 +246,8 @@ final class Supertext extends CMSPlugin implements SubscriberInterface
             'BUTTON', 'DIALOG_TITLE', 'INTRO_ONE', 'INTRO_MANY', 'SAVE_FIRST', 'TARGETS', 'EXISTS', 'EXISTS_SOME',
             'UNPUBLISHED', 'OVERWRITE', 'OVERWRITE_HINT', 'TRANSLATE', 'TRANSLATING', 'CANCEL', 'CLOSE', 'NO_TARGETS',
             'RESULT_CREATED', 'RESULT_UPDATED', 'RESULT_SKIPPED', 'RESULT_ERROR', 'OPEN', 'NOT_CONFIGURED', 'REVIEW_HINT', 'LOADING',
+            'EXPORT', 'IMPORT', 'FORMAT', 'FORMAT_XLIFF', 'FORMAT_HTML', 'DOWNLOAD', 'EXPORT_ONE', 'EXPORT_HINT', 'FILE', 'INCLUDE_CHANGED',
+            'IMPORTING', 'IMPORT_HINT', 'NO_FILE', 'SUMMARY_OK', 'SUMMARY_CHANGED', 'SUMMARY_UNTRANSLATED', 'SUMMARY_INVALID', 'SUMMARY_MISSING',
         ] as $key) {
             Text::script('PLG_SYSTEM_SUPERTEXT_JS_' . $key);
         }
@@ -282,6 +285,8 @@ final class Supertext extends CMSPlugin implements SubscriberInterface
             'describe'  => $translator->describe($input->post->getInt('id'), $user),
             'translate' => $this->translateAll($translator, $input->post->get('ids', [], 'array'), $input->post->get('targets', [], 'array'), $input->post->getBool('overwrite'), $user),
             'test'      => $this->testConnection(),
+            'export'    => $this->sendExport($translator, $input->post->getInt('id'), $input->post->get('targets', [], 'array'), $input->post->getCmd('format'), $user),
+            'import'    => $this->importUpload($translator, $input->files->get('file', [], 'raw'), $input->post->getBool('include_changed'), $input->post->getBool('overwrite'), $user),
             default     => throw new \RuntimeException('Unknown action', 400),
         };
 
@@ -321,6 +326,82 @@ final class Supertext extends CMSPlugin implements SubscriberInterface
         }
 
         $app->close();
+    }
+
+    /**
+     * "Export for translation": sends the file as a download and ends the request (bypasses
+     * com_ajax's JSON wrapper); errors go back as com_ajax JSON like the other actions.
+     *
+     * @param array<mixed> $targets
+     *
+     * @return array{} nothing: the request ends here
+     */
+    private function sendExport(ArticleTranslator $translator, int $id, array $targets, string $format, $user): array
+    {
+        $targets = array_values(array_filter(array_map(static fn ($t) => preg_replace('/[^A-Za-z0-9-]/', '', (string) $t), $targets)));
+
+        try {
+            $file = $translator->exportFile($id, $targets, $format === FileTransfer::HTML ? FileTransfer::HTML : FileTransfer::XLIFF, $user);
+        } catch (FileTransferException $e) {
+            throw new \RuntimeException(Messages::of($e, $this->getApplication()->getLanguage()), 400);
+        }
+
+        $app = $this->getApplication();
+
+        if (!headers_sent()) {
+            header('Content-Type: ' . $file['type'], true);
+            header('Content-Disposition: attachment; filename="' . $file['name'] . '"', true);
+            header('Content-Length: ' . \strlen($file['body']), true);
+            header('Cache-Control: no-store', true);
+            header('X-Content-Type-Options: nosniff', true);
+        }
+
+        echo $file['body'];
+        $app->close();
+
+        return [];
+    }
+
+    /**
+     * "Import translation": the uploaded file (never stored, read in memory) written back, with
+     * a summary per job.
+     *
+     * @param mixed $upload the file from $_FILES
+     *
+     * @return array{results: list<array<string, mixed>>}
+     */
+    private function importUpload(ArticleTranslator $translator, mixed $upload, bool $includeChanged, bool $overwrite, $user): array
+    {
+        $language = $this->getApplication()->getLanguage();
+
+        try {
+            $error = \is_array($upload) ? (int) ($upload['error'] ?? UPLOAD_ERR_NO_FILE) : UPLOAD_ERR_NO_FILE;
+
+            if (\in_array($error, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
+                throw new FileTransferException('too_large');
+            }
+
+            $path = \is_array($upload) ? (string) ($upload['tmp_name'] ?? '') : '';
+
+            if ($error !== UPLOAD_ERR_OK || $path === '' || !is_uploaded_file($path)) {
+                throw new FileTransferException('no_file');
+            }
+
+            // Refuse large files before reading them.
+            FileTransfer::assertUploadSize((int) max((int) ($upload['size'] ?? 0), (int) filesize($path)));
+            $results = $translator->importFile((string) file_get_contents($path), $includeChanged, $overwrite, $user);
+        } catch (FileTransferException $e) {
+            throw new \RuntimeException(Messages::of($e, $language), 400);
+        }
+
+        return ['results' => array_map(static function (array $r) use ($language): array {
+            if (isset($r['error'])) {
+                $r['message'] = Messages::of($r['error'], $language);
+                unset($r['error']);
+            }
+
+            return $r;
+        }, $results)];
     }
 
     /**
@@ -404,31 +485,6 @@ final class Supertext extends CMSPlugin implements SubscriberInterface
     }
 
     /**
-     * Every content language with the Supertext code it is sent as (null: not mapped yet) and its tone.
-     *
-     * @return list<array{tag: string, title: string, target: ?string, politeness: string, politenessSupported: ?bool}>
-     */
-    public function languageOverview(): array
-    {
-        $settings = $this->languageSettings();
-        $mapping  = Languages::mapping($settings);
-        $rows     = [];
-
-        foreach (LanguageHelper::getContentLanguages([0, 1]) as $tag => $language) {
-            $target = Languages::targetOrNull((string) $tag, $mapping);
-            $rows[] = [
-                'tag'                 => (string) $tag,
-                'title'               => (string) $language->title,
-                'target'              => $target,
-                'politeness'          => (string) ($settings[$tag]['politeness'] ?? 'default'),
-                'politenessSupported' => $target !== null ? Languages::supportsPoliteness($target) : null,
-            ];
-        }
-
-        return $rows;
-    }
-
-    /**
      * Runs a reporter action (version report, key check if the key changed) after the response,
      * so the back end never waits for it: on PHP-FPM the response is finished first; otherwise it
      * runs at the end of the request. Only one action per request (a rejected key wins).
@@ -499,21 +555,14 @@ final class Supertext extends CMSPlugin implements SubscriberInterface
         return Reporting::siteUrl($app->get('live_site'));
     }
 
-    /** @return array<string, array{code: string, politeness: string}> keyed by content language tag */
+    /**
+     * The Languages tab (both the current format and the rows of 0.1.0, see Languages::settings()).
+     *
+     * @return array<string, array{code: string, politeness: string, review: bool}> keyed by content language tag
+     */
     private function languageSettings(): array
     {
-        $languages = [];
-
-        foreach ((array) $this->params->get('languages', []) as $row) {
-            $row = (array) $row;
-            $tag = (string) ($row['language'] ?? '');
-
-            if ($tag !== '') {
-                $languages[$tag] = ['code' => (string) ($row['code'] ?? ''), 'politeness' => (string) ($row['politeness'] ?? 'default')];
-            }
-        }
-
-        return $languages;
+        return Languages::settings($this->params->get('languages', []));
     }
 
     private function translator(): ArticleTranslator
@@ -580,6 +629,21 @@ final class Supertext extends CMSPlugin implements SubscriberInterface
         };
     }
 
+    /**
+     * The review service for languages with Translation review on: SUPERTEXT_REVIEW_URL, else the
+     * setting (never saved: Supertext's review service; saved empty: review off everywhere).
+     */
+    private function reviewUrl(): string
+    {
+        $env = getenv('SUPERTEXT_REVIEW_URL');
+
+        if (\is_string($env) && trim($env) !== '') {
+            return trim($env);
+        }
+
+        return $this->params->exists('review_url') ? trim((string) $this->params->get('review_url', '')) : SupertextClient::REVIEW_URL;
+    }
+
     private function client(string $key): SupertextClient
     {
         return new SupertextClient(
@@ -588,6 +652,8 @@ final class Supertext extends CMSPlugin implements SubscriberInterface
             $this->transport(),
             max(10, (int) $this->params->get('poll_timeout', 180)),
             max(0.5, (float) $this->params->get('poll_interval', 2)),
+            reviewUrl: $this->reviewUrl(),
+            version: Reporting::pluginVersion(\dirname(__DIR__, 2) . '/supertext.xml'),
         );
     }
 }

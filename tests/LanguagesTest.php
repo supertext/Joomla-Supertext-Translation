@@ -7,7 +7,7 @@ use PHPUnit\Framework\TestCase;
 use Supertext\Plugin\System\Supertext\Api\Languages;
 use Supertext\Plugin\System\Supertext\Api\SupertextException;
 
-/** Content languages → Supertext codes: the mapping, else an exact Supertext code, else unsupported_language. No guessing. */
+/** Content languages → Supertext codes: the mapping, else an exact Supertext code, else the SDK's default, else unsupported_language. */
 final class LanguagesTest extends TestCase
 {
     private const SETTINGS = [
@@ -33,6 +33,10 @@ final class LanguagesTest extends TestCase
         yield 'mapped bare code' => ['es-ES', 'es'];
         yield 'mapped script' => ['zh-CN', 'zh-Hans'];
         yield 'mapping key case ignored' => ['ES_es', 'es'];
+        yield 'default: bare de' => ['de', 'de-DE'];
+        yield 'default: region of a bare target' => ['nl-NL', 'nl'];
+        yield 'default: sl-SI' => ['sl-SI', 'sl'];
+        yield 'default: zh-TW' => ['zh-TW', 'zh-Hant'];
     }
 
     #[DataProvider('targets')]
@@ -44,16 +48,16 @@ final class LanguagesTest extends TestCase
     /** @return iterable<string, array{string}> */
     public static function unmapped(): iterable
     {
-        // The old default regions are gone: Supertext rejects es-ES, sl-SI, zh-CN, nl-NL.
-        yield 'es-ES' => ['es-ES'];
-        yield 'sl-SI' => ['sl-SI'];
-        yield 'nl-NL' => ['nl-NL'];
-        yield 'bare de' => ['de'];
+        // No default where none is obvious: these need a choice on the Languages tab.
+        yield 'en-IE' => ['en-IE'];
+        yield 'de-LI' => ['de-LI'];
+        yield 'gsw' => ['gsw'];
+        yield 'sr-RS' => ['sr-RS'];
         yield 'unknown' => ['xx-YY'];
     }
 
     #[DataProvider('unmapped')]
-    public function testUnmappedLanguagesAreNotGuessed(string $tag): void
+    public function testLanguagesWithoutDefaultNeedAMapping(string $tag): void
     {
         self::assertNull(Languages::targetOrNull($tag));
 
@@ -124,5 +128,79 @@ final class LanguagesTest extends TestCase
         self::assertSame('fr-FR', Languages::exactTarget('fr_fr'));
         self::assertNull(Languages::exactTarget('es-ES'));
         self::assertContains('zh-Hant', array_column(Languages::targets(), 'code'));
+    }
+
+    public function testSuggestions(): void
+    {
+        self::assertSame('de-CH', Languages::suggest('de-CH'));
+        self::assertSame('en-GB', Languages::suggest('en_gb'));
+        self::assertSame('es', Languages::suggest('es-ES'));
+        self::assertSame('zh-Hans', Languages::suggest('zh-CN'));
+        self::assertSame('de-DE', Languages::suggest('de'));
+        self::assertNull(Languages::suggest('en-IE'));
+        self::assertNull(Languages::suggest('gsw'));
+    }
+
+    public function testTheListIsSortedByName(): void
+    {
+        $names = array_column(Languages::targets(), 'name');
+        $sorted = $names;
+        sort($sorted, SORT_STRING);
+        self::assertSame($sorted, $names);
+    }
+
+    public function testSettingsReadTheCurrentFormat(): void
+    {
+        $stored = (object) ['es-ES' => (object) ['code' => 'es', 'politeness' => 'more', 'review' => true], 'fr-FR' => (object) ['code' => 'fr-CH']];
+
+        self::assertSame(
+            ['es-ES' => ['code' => 'es', 'politeness' => 'more', 'review' => true], 'fr-FR' => ['code' => 'fr-CH', 'politeness' => 'default', 'review' => false]],
+            Languages::settings($stored),
+        );
+        self::assertSame(['de-CH' => ['code' => 'de-CH', 'politeness' => 'less', 'review' => false]], Languages::settings('{"de-CH":{"code":"de-CH","politeness":"less"}}'), 'Translation review is off unless saved on');
+        self::assertSame([], Languages::settings(null));
+        self::assertSame([], Languages::settings(''));
+    }
+
+    public function testSettingsMigrateTheRepeatableRowsOf010(): void
+    {
+        $stored = (object) [
+            'languages0' => (object) ['language' => 'es-ES', 'code' => 'es', 'politeness' => 'default'],
+            'languages1' => (object) ['language' => 'fr-FR', 'code' => 'fr-CH', 'politeness' => 'more'],
+            'languages2' => (object) ['language' => '', 'code' => 'nl'],
+            'languages3' => (object) ['language' => 'en-GB', 'code' => '', 'politeness' => 'bogus'],
+        ];
+
+        self::assertSame(
+            [
+                'es-ES' => ['code' => 'es', 'politeness' => 'default', 'review' => false],
+                'fr-FR' => ['code' => 'fr-CH', 'politeness' => 'more', 'review' => false],
+                'en-GB' => ['code' => '', 'politeness' => 'default', 'review' => false],
+            ],
+            Languages::settings($stored),
+        );
+    }
+
+    public function testCleanKeepsOnlySupertextCodesAndTonesTheyOffer(): void
+    {
+        $posted = [
+            'es-ES'  => ['code' => 'ES', 'politeness' => 'more', 'review' => '1'],
+            'en-GB'  => ['code' => 'en-GB', 'politeness' => 'more', 'review' => '0'],
+            'fr-FR'  => ['code' => 'fr-ch', 'politeness' => 'less'],
+            'de-CH'  => ['code' => 'xx-YY', 'politeness' => 'more'],
+            'en-IE'  => ['code' => '', 'politeness' => 'more'],
+            'a b"<'  => ['code' => 'es'],
+        ];
+
+        self::assertSame(
+            [
+                'es-ES' => ['code' => 'es', 'politeness' => 'more', 'review' => true],
+                'en-GB' => ['code' => 'en-GB', 'politeness' => 'default', 'review' => false],
+                'fr-FR' => ['code' => 'fr-CH', 'politeness' => 'less', 'review' => false],
+                'de-CH' => ['code' => '', 'politeness' => 'default', 'review' => false],
+                'en-IE' => ['code' => '', 'politeness' => 'default', 'review' => false],
+            ],
+            Languages::clean($posted),
+        );
     }
 }

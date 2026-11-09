@@ -2,6 +2,9 @@
 /dist/
 /.phpunit.cache/
 /tests/docs/node_modules
+/tests/docs/package-lock.json
+/tests/docs/movie/out/
+/tests/docs/movie/voice-cache/
 .DS_Store
 /.joomla/
 /tests/e2e/node_modules/

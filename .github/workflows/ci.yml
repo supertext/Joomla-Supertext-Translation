@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php: ['8.2', '8.3', '8.4']
+        php: ['8.2', '8.3', '8.4', '8.5']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -36,7 +36,7 @@ jobs:
     name: PHPStan
     runs-on: ubuntu-latest
     env:
-      JOOMLA_VERSION: 6.1.4
+      JOOMLA_VERSION: 6.2.0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -58,7 +58,7 @@ jobs:
     needs: unit
     runs-on: ubuntu-latest
     env:
-      JOOMLA_VERSION: 6.1.4
+      JOOMLA_VERSION: 6.2.0
       DEMO_ADMIN_EMAIL: admin@example.com
       DEMO_ADMIN_PASSWORD: ci-admin-password-1
       DEMO_EDITOR_EMAIL: editor@example.com
@@ -85,7 +85,7 @@ jobs:
           php-version: '8.3'
           extensions: pgsql, pdo_pgsql, intl, gd, zip
           coverage: none
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
       - name: Start the stand-in API
