@@ -11,7 +11,7 @@ A ready-to-run container with Joomla 6.2, English sample articles, German (Switz
 | | |
 | --- | --- |
 | Joomla | 6.2 and 6.1 (tested), 5.4 (supported, not yet tested) |
-| PHP | Whatever your Joomla version needs (8.3+ for Joomla 6), with `ext-dom` and `ext-curl` (or `allow_url_fopen`) |
+| PHP | 8.2 or later, and what your Joomla version needs (8.3+ for Joomla 6), with `ext-dom` and `ext-curl` (or `allow_url_fopen`) |
 | Database | Any database Joomla supports (MySQL, MariaDB, PostgreSQL) |
 | Joomla setup | A multilingual site: at least two content languages and *Item Associations* switched on (step 3) |
 | Supertext | An account with an API key, see [Get a Supertext account and API key](#get-a-supertext-account-and-api-key) |
