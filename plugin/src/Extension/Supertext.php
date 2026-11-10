@@ -206,7 +206,9 @@ final class Supertext extends CMSPlugin implements SubscriberInterface
 
         $label = Text::_('PLG_SYSTEM_SUPERTEXT_BUTTON');
         $html  = $mode === 'list'
-            ? '<joomla-toolbar-button list-selection><button type="button" class="btn btn-primary supertext-open" disabled>'
+            // No static "disabled": Joomla's toolbar button disables it until a row is selected. Joomla 6.2
+            // does that with the class "disabled" and never removes the attribute, so the button would stay disabled.
+            ? '<joomla-toolbar-button list-selection><button type="button" class="btn btn-primary supertext-open">'
                 . '<span class="icon-language" aria-hidden="true"></span> ' . $label . '</button></joomla-toolbar-button>'
             : '<joomla-toolbar-button><button type="button" class="btn btn-primary supertext-open">'
                 . '<span class="icon-language" aria-hidden="true"></span> ' . $label . '</button></joomla-toolbar-button>';
