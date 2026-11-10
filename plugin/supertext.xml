@@ -7,7 +7,7 @@
 	<license>GNU General Public License version 2 or later; see LICENSE</license>
 	<authorEmail>support@supertext.com</authorEmail>
 	<authorUrl>https://www.supertext.com</authorUrl>
-	<version>0.1.0</version>
+	<version>1.0.0</version>
 	<description>PLG_SYSTEM_SUPERTEXT_XML_DESCRIPTION</description>
 	<namespace path="src">Supertext\Plugin\System\Supertext</namespace>
 	<files>

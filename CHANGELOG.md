@@ -4,6 +4,10 @@ All notable changes to this project are documented here.
 
 ## Unreleased
 
+## 1.0.0 — 2026-11-10
+
+First stable release. Every plugin release is now tested end to end against the live Supertext API (`.github/workflows/e2e.yml`).
+
 - Removed: support for PHP 8.1 (end of life since 31 December 2025). The plugin needs PHP 8.2 or later; every supported Joomla version (5.4, 6.x) runs on it. The unit tests use PHPUnit 11.
 - Fixed: in Joomla 6.2 the **Supertext** button in the Articles list stayed disabled after selecting articles (Joomla 6.2 enables list buttons by a class, not the `disabled` attribute the plugin set). Found by the new end-to-end test against the real Supertext API.
 - Fixed: opening the plugin's settings right after installing it, while it is still disabled, failed with *Call to a member function get() on null*. The page now shows the stored settings, so you can enable the plugin and enter the key there, as the installation guide says.
