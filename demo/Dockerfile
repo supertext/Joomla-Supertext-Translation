@@ -4,7 +4,7 @@
 # Everything persistent is in PostgreSQL (DATABASE_URL), including configuration.php;
 # the container keeps no files between deploys. See docs/DEVELOPER.md -> Demo.
 
-FROM php:8.3-apache
+FROM php:8.5-apache
 
 ARG JOOMLA_VERSION=6.2.0
 ARG JOOMLA_LANGUAGES="de-CH fr-FR it-IT"
@@ -14,7 +14,8 @@ RUN apt-get update \
       libicu-dev libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libwebp-dev libpq-dev \
       unzip zip curl ca-certificates \
  && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
- && docker-php-ext-install -j"$(nproc)" intl zip gd opcache pgsql pdo_pgsql mysqli pdo_mysql \
+ && docker-php-ext-install -j"$(nproc)" intl zip gd pgsql pdo_pgsql mysqli pdo_mysql \
+ && { php -m | grep -q 'Zend OPcache' || docker-php-ext-install opcache; } \
  && a2enmod rewrite headers expires deflate \
  && rm -rf /var/lib/apt/lists/*
 
