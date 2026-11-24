@@ -261,6 +261,34 @@ final class ReportingTest extends TestCase
         self::assertSame('0.0.0', Reporting::pluginVersion(__DIR__ . '/missing.xml'));
     }
 
+    public function testSendConfigurationSendsExtensionsAndTheLanguageMappingEvenWithinTheBackOffHour(): void
+    {
+        $this->centerStatus = 503;
+        $this->reporting()->run(Reporting::ON_REQUEST, self::KEY);
+        $this->calls        = [];
+        $this->centerStatus = 202;
+
+        $result = $this->reporting()->sendConfiguration(
+            [['name' => 'com_falang', 'version' => '5.2.0', 'active' => true, 'type' => 'component']],
+            [['code' => 'en-GB', 'supertext' => 'en-GB'], ['code' => 'de-CH', 'supertext' => 'de-CH'], ['code' => 'en-IE', 'supertext' => null]],
+        );
+
+        self::assertSame('extensions', $result?->event);
+        self::assertTrue($result->sent);
+        [$report] = $this->reports();
+        self::assertSame('extensions', $report['event']);
+        self::assertSame([['name' => 'com_falang', 'version' => '5.2.0', 'active' => true, 'type' => 'component']], $report['extensions']);
+        self::assertSame([['code' => 'en-GB', 'supertext' => 'en-GB'], ['code' => 'de-CH', 'supertext' => 'de-CH'], ['code' => 'en-IE', 'supertext' => null]], $report['languages']);
+    }
+
+    public function testSendConfigurationSendsNothingWithReportsOff(): void
+    {
+        $result = $this->reporting(enabled: false)->sendConfiguration([['name' => 'com_falang']], [['code' => 'de-CH', 'supertext' => 'de-CH']]);
+
+        self::assertFalse((bool) $result?->sent);
+        self::assertSame([], $this->reports());
+    }
+
     public function testAStateStoredByTheSdk02ReporterIsKept(): void
     {
         $this->reporting()->run(Reporting::ON_REQUEST, self::KEY);
@@ -279,6 +307,8 @@ final class ReportingTest extends TestCase
 
         self::assertNull($this->reporting()->run(Reporting::ON_REQUEST, self::KEY)?->event, 'no new installed report after the update');
         self::assertSame([], $this->calls);
+        // Plugin Health 0.2+ adds keyChecks and reportedKeyStatuses (null with one key); everything else is kept.
+        $before['reporter'] += ['keyChecks' => null, 'reportedKeyStatuses' => null];
         self::assertSame($before, $this->storage->data, 'stored in the same format');
     }
 }

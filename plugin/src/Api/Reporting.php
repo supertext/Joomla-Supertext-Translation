@@ -46,9 +46,17 @@ final class Reporting
     public const AUTHENTICATION_FAILED = 'authenticationFailed';
     public const TEST_CONNECTION = 'testConnection';
     public const REPORT_CHECK = 'reportCheck';
+    /** "Send configuration to Supertext" (sendConfiguration()). */
+    public const SEND_CONFIGURATION = 'sendConfiguration';
 
     /** @var (callable(): float)|null */
     private $now;
+
+    /** @var list<array{name: string, version?: string, active?: bool, type?: string}> for SEND_CONFIGURATION */
+    private array $extensions = [];
+
+    /** @var (callable(): iterable<mixed>)|null the language mapping, only for SEND_CONFIGURATION */
+    private $languages = null;
 
     /** @var (callable(float): void)|null */
     private $sleep;
@@ -144,27 +152,15 @@ final class Reporting
             }
 
             $site     = $this->siteUrl ?? self::siteUrl($data['siteUrl'] ?? null);
-            $reporter = new InstallationReporter(
-                enabled: $this->enabled && $stored && $site !== null,
-                siteUrl: $site ?? '',
-                pluginName: self::PLUGIN_NAME,
-                pluginVersion: $this->pluginVersion,
-                systemName: self::SYSTEM_NAME,
-                keyChecker: $this->keyChecker(),
-                systemVersion: $this->systemVersion,
-                sdkVersion: SupertextSdk::SDK_VERSION,
-                callbackUrl: $site !== null ? self::callbackUrl($site) : null,
-                reportUrl: $this->reportUrl,
-                transport: new ReportTransport($this->transport),
-                now: $this->now,
-            );
-            $state = ReporterState::from($data['reporter'] ?? null);
+            $reporter = $this->reporter($site, $stored, $this->languages);
+            $state    = ReporterState::from($data['reporter'] ?? null);
 
             $result = match ($action) {
                 self::AFTER_SETTINGS_SAVED  => $reporter->afterSettingsSaved($state, $apiKey),
                 self::AUTHENTICATION_FAILED => $reporter->authenticationFailed($state, $apiKey, $httpStatus),
                 self::TEST_CONNECTION       => $reporter->testConnection($state, $apiKey),
                 self::REPORT_CHECK          => $reporter->reportCheck($state),
+                self::SEND_CONFIGURATION    => $reporter->sendExtensions($state, $this->extensions),
                 default                     => $reporter->onRequest($state, $apiKey),
             };
 
@@ -180,6 +176,46 @@ final class Reporting
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * "Send configuration to Supertext": the installed extensions and the language mapping in one
+     * `extensions` report, now (also after a recent failure), only while reports are on. Never throws.
+     *
+     * @param list<array{name: string, version?: string, active?: bool, type?: string}> $extensions
+     * @param list<array{code: string, supertext: ?string}>                            $languages
+     */
+    public function sendConfiguration(array $extensions, array $languages): ?ReporterResult
+    {
+        $this->extensions = $extensions;
+        $this->languages  = static fn (): array => $languages;
+
+        try {
+            return $this->run(self::SEND_CONFIGURATION, '');
+        } finally {
+            $this->extensions = [];
+            $this->languages  = null;
+        }
+    }
+
+    /** @param (callable(): iterable<mixed>)|null $languages the language mapping the reports carry */
+    private function reporter(?string $site, bool $stored, ?callable $languages): InstallationReporter
+    {
+        return new InstallationReporter(
+            enabled: $this->enabled && $stored && $site !== null,
+            siteUrl: $site ?? '',
+            pluginName: self::PLUGIN_NAME,
+            pluginVersion: $this->pluginVersion,
+            systemName: self::SYSTEM_NAME,
+            keyChecker: $this->keyChecker(),
+            systemVersion: $this->systemVersion,
+            sdkVersion: SupertextSdk::SDK_VERSION,
+            callbackUrl: $site !== null ? self::callbackUrl($site) : null,
+            reportUrl: $this->reportUrl,
+            transport: new ReportTransport($this->transport),
+            now: $this->now,
+            languages: $languages,
+        );
     }
 
     /** The SDK's key check (GET features) against the configured API, through the plugin's transport. */

@@ -26,7 +26,8 @@ use Supertext\Plugin\System\Supertext\Service\Messages;
 /**
  * The API key check in the plugin settings: the latest automatic check (after every save, when
  * the key changed, after Supertext rejected it) with its time, and the "Test connection" button
- * that runs it again with the saved key (cost-free `GET /v1/features`).
+ * that runs it again with the saved key (cost-free `GET /v1/features`), and for Super Users
+ * "Send configuration to Supertext" (installed extensions and language mapping, on demand).
  *
  * Opening the settings page is a back-end request that runs the plugin: it also schedules the
  * Commando Center's check (upgrades, a changed key from SUPERTEXT_API_KEY) for after the response.
@@ -83,6 +84,25 @@ final class ConnectionField extends FormField
                     }
                     button.disabled = false;
                   });
+                  const config = document.getElementById('{$id}-config');
+                  const configOut = document.getElementById('{$id}-config-result');
+                  if (config) config.addEventListener('click', async () => {
+                    config.disabled = true;
+                    configOut.textContent = '…';
+                    const body = new FormData();
+                    body.append('{$token}', '1');
+                    body.append('action', 'config');
+                    try {
+                      const res = await fetch('{$endpoint}', { method: 'POST', body, credentials: 'same-origin' });
+                      const json = await res.json();
+                      if (!res.ok || json.success === false) throw new Error(json.message || 'HTTP ' + res.status);
+                      const data = Array.isArray(json.data) ? json.data[0] : json.data;
+                      configOut.innerHTML = '<span class="' + (data.ok ? 'text-success' : 'text-danger') + '">' + esc(data.message) + '</span>';
+                    } catch (e) {
+                      configOut.innerHTML = '<span class="text-danger">' + esc(e.message) + '</span>';
+                    }
+                    config.disabled = false;
+                  });
                 });
                 JS
             );
@@ -90,6 +110,12 @@ final class ConnectionField extends FormField
 
         return $note . '<div id="' . $id . '-result" class="mb-2" role="status">' . $current . '</div>'
             . '<button type="button" class="btn btn-secondary" id="' . $id . '">' . Text::_('PLG_SYSTEM_SUPERTEXT_TEST_BUTTON') . '</button>'
-            . '<div class="form-text">' . Text::_('PLG_SYSTEM_SUPERTEXT_TEST_DESC') . '</div>';
+            . '<div class="form-text">' . Text::_('PLG_SYSTEM_SUPERTEXT_TEST_DESC') . '</div>'
+            // Super Users: the installed extensions and the language mapping, on demand.
+            . ($app->getIdentity()?->authorise('core.admin')
+                ? '<div class="mt-3"><button type="button" class="btn btn-secondary" id="' . $id . '-config">' . Text::_('PLG_SYSTEM_SUPERTEXT_CONFIG_BUTTON') . '</button>'
+                    . '<div id="' . $id . '-config-result" class="mt-2" role="status"></div>'
+                    . '<div class="form-text">' . Text::_('PLG_SYSTEM_SUPERTEXT_CONFIG_DESC') . '</div></div>'
+                : '');
     }
 }

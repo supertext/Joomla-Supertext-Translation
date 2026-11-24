@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 /**
- * Regenerates docs/images from a freshly installed demo whose plugin talks to stand-in.mjs.
+ * Regenerates docs/images from a freshly installed demo. With DOCS_API_KEY (CI: the secret
+ * SUPERTEXT_API_KEY) the plugin translates with the real Supertext API; without it, start the
+ * site with SUPERTEXT_API_ENDPOINT pointing at stand-in.mjs.
  * See docs/DEVELOPER.md -> Docs screenshots.
  *
  *   BASE_URL (default http://127.0.0.1:8092)
  *   DEMO_ADMIN_EMAIL / DEMO_ADMIN_PASSWORD     settings screens (Super User)
  *   DEMO_EDITOR_EMAIL / DEMO_EDITOR_PASSWORD   translating (Manager)
  *   PUBLIC_URL (default the Railway demo)      shown instead of BASE_URL in addresses on screen (the ping URL)
+ *   DOCS_API_KEY                               Supertext API key entered in the settings (default: any key, for the stand-in)
  *
  * Start the site with SUPERTEXT_REPORT_URL pointing at the stand-in (http://127.0.0.1:8765/report),
  * so saving the settings reports to the stand-in, not to Supertext's Commando Center.
@@ -61,9 +64,9 @@ async function session(email, password) {
   await go('/administrator/index.php?option=com_plugins&view=plugins&filter[search]=Supertext')
   await page.locator('a', { hasText: 'System - Supertext Translation' }).first().click()
   await page.waitForLoadState('networkidle')
-  // Enter a key (the stand-in accepts any), save, then test it.
+  // Enter a key (the real one from DOCS_API_KEY; the stand-in accepts any), save, then test it.
   await page.locator('#jform_params_api_key_lock').click()
-  await page.locator('#jform_params_api_key').fill('Supertext-Auth-Key docs-demo-key')
+  await page.locator('#jform_params_api_key').fill(process.env.DOCS_API_KEY || 'Supertext-Auth-Key docs-demo-key')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await page.waitForLoadState('networkidle')
   // Saving runs the automatic key check and shows its result.
@@ -114,7 +117,7 @@ async function session(email, password) {
   await shot('translate-dialog', await box('.supertext-dialog'))
 
   await page.locator('.supertext-dialog [data-go]').click()
-  await page.locator('.supertext-results').waitFor({ timeout: 120000 })
+  await page.locator('.supertext-results').waitFor({ timeout: 300000 })
   await shot('translate-results', await box('.supertext-dialog'))
   await page.locator('.supertext-dialog footer [data-close]').click()
   await page.waitForLoadState('networkidle')
@@ -122,7 +125,7 @@ async function session(email, password) {
 
   // The German translation in the editor
   await go('/administrator/index.php?option=com_content&view=articles&filter[language]=de-CH')
-  await page.locator('a[href*="task=article.edit"]', { hasText: 'Schweizer Schokolade' }).first().click()
+  await page.locator('a[href*="task=article.edit"]', { hasText: /Schokolade/ }).first().click() // real translation: wording may vary
   await page.waitForLoadState('networkidle')
   await page.waitForTimeout(1500) // TinyMCE
   await shot('translated-article', { x: 0, y: 60, width: 1280, height: 640 })
@@ -176,7 +179,7 @@ async function session(email, password) {
   await page.locator('#st-file').setInputFiles(upload)
   await shot('import-dialog', await box('.supertext-dialog'))
   await page.locator('.supertext-dialog [data-go]').click()
-  await page.locator('.supertext-results').waitFor({ timeout: 60000 })
+  await page.locator('.supertext-results').waitFor({ timeout: 300000 })
   await shot('import-summary', await box('.supertext-dialog'))
   await page.locator('.supertext-dialog header [data-close]').click()
 }

@@ -18,6 +18,7 @@ use Joomla\CMS\Event\Model\AfterSaveEvent;
 use Joomla\CMS\Event\Model\BeforeSaveEvent;
 use Joomla\CMS\Event\PageCache\IsExcludedEvent;
 use Joomla\CMS\Event\Plugin\AjaxEvent;
+use Joomla\CMS\Extension\ExtensionHelper;
 use Joomla\CMS\Http\HttpFactory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
@@ -37,6 +38,7 @@ use Supertext\Plugin\System\Supertext\Api\Languages;
 use Supertext\Plugin\System\Supertext\Api\Reporting;
 use Supertext\Plugin\System\Supertext\Api\SupertextClient;
 use Supertext\Plugin\System\Supertext\Console\TranslateCommand;
+use Supertext\Plugin\System\Supertext\PluginHealth\InstallationReporter;
 use Supertext\Plugin\System\Supertext\PluginHealth\KeyCheck;
 use Supertext\Plugin\System\Supertext\Service\ArticleTranslator;
 use Supertext\Plugin\System\Supertext\Service\ExtensionStateStorage;
@@ -287,6 +289,7 @@ final class Supertext extends CMSPlugin implements SubscriberInterface
             'describe'  => $translator->describe($input->post->getInt('id'), $user),
             'translate' => $this->translateAll($translator, $input->post->get('ids', [], 'array'), $input->post->get('targets', [], 'array'), $input->post->getBool('overwrite'), $user),
             'test'      => $this->testConnection(),
+            'config'    => $this->sendConfiguration($user),
             'export'    => $this->sendExport($translator, $input->post->getInt('id'), $input->post->get('targets', [], 'array'), $input->post->getCmd('format'), $user),
             'import'    => $this->importUpload($translator, $input->files->get('file', [], 'raw'), $input->post->getBool('include_changed'), $input->post->getBool('overwrite'), $user),
             default     => throw new \RuntimeException('Unknown action', 400),
@@ -452,6 +455,70 @@ final class Supertext extends CMSPlugin implements SubscriberInterface
             'message' => Messages::keyCheck($check, $this->getApplication()->getLanguage()),
             'checked' => $this->checkedAt($check),
         ];
+    }
+
+    /**
+     * "Send configuration to Supertext" (Super Users, plugin settings): the installed non-core
+     * extensions and every content language's Supertext code in one `extensions` report.
+     *
+     * @return array{ok: bool, message: string}
+     */
+    private function sendConfiguration($user): array
+    {
+        if (!$user->authorise('core.admin')) {
+            throw new \RuntimeException(Text::_('JERROR_ALERTNOAUTHOR'), 403);
+        }
+
+        $extensions = InstallationReporter::normalizeExtensions($this->installedExtensions());
+        $mapping    = Languages::mapping($this->languageSettings());
+        $languages  = [];
+        $db         = $this->getDatabase();
+
+        foreach ($db->setQuery($db->getQuery(true)->select($db->quoteName('lang_code'))->from($db->quoteName('#__languages'))->order($db->quoteName('ordering')))->loadColumn() as $tag) {
+            $languages[] = ['code' => (string) $tag, 'supertext' => Languages::targetOrNull((string) $tag, $mapping)];
+        }
+
+        $languages = InstallationReporter::normalizeLanguages($languages);
+        $result    = $this->reportsEnabled() ? $this->reporting()->sendConfiguration($extensions, $languages) : null;
+
+        if (!$this->reportsEnabled()) {
+            return ['ok' => false, 'message' => Text::_('PLG_SYSTEM_SUPERTEXT_CONFIG_OFF')];
+        }
+
+        return $result?->sent
+            ? ['ok' => true, 'message' => Text::sprintf('PLG_SYSTEM_SUPERTEXT_CONFIG_SENT', \count($extensions), \count($languages))]
+            : ['ok' => false, 'message' => Text::_('PLG_SYSTEM_SUPERTEXT_CONFIG_FAILED')];
+    }
+
+    /**
+     * The installed extensions that aren't part of Joomla itself (ExtensionHelper's core list):
+     * name, version (manifest cache), enabled or not, and the type.
+     *
+     * @return list<array{name: string, version: string, active: bool, type: string}>
+     */
+    private function installedExtensions(): array
+    {
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName(['type', 'element', 'folder', 'client_id', 'name', 'enabled', 'manifest_cache']))
+            ->from($db->quoteName('#__extensions'))
+            ->whereIn($db->quoteName('type'), ['component', 'module', 'plugin', 'template', 'library', 'package', 'file'], \Joomla\Database\ParameterType::STRING);
+        $list = [];
+
+        foreach ($db->setQuery($query)->loadObjectList() as $row) {
+            if (ExtensionHelper::checkIfCoreExtension((string) $row->type, (string) $row->element, (int) $row->client_id, (string) $row->folder)) {
+                continue;
+            }
+            $manifest = json_decode((string) $row->manifest_cache, true);
+            $list[]   = [
+                'name'    => (string) (\is_array($manifest) && !empty($manifest['name']) ? $manifest['name'] : $row->name),
+                'version' => (string) (\is_array($manifest) ? ($manifest['version'] ?? '') : ''),
+                'active'  => (int) $row->enabled === 1,
+                'type'    => (string) $row->type,
+            ];
+        }
+
+        return $list;
     }
 
     /** "checked 13.10.2026 09:15" in the user's language and time zone. */
