@@ -348,6 +348,7 @@ The release attaches `plg_system_supertext-X.Y.Z.zip`, built by `./build.sh`.
 - Re-translating overwrites manual changes; no change detection. A translation memory and reviewers' corrections come from the review service when a language has *Translation review* on; corrections reach Joomla only with the next translation (no push).
 - Translation runs inside the request (up to the timeout per language). Planned: a queue via Joomla's Task Scheduler for many articles.
 - Not yet tested on Joomla 5.4, or on MySQL/MariaDB (developed and tested on PostgreSQL).
+- PostgreSQL 19 (November 2026): Joomla 6.2.1's installer fails on it (`non-standard string literals are not supported`), so CI and the E2E test stay on PostgreSQL 18 until Joomla supports 19.
 - Subform and repeatable custom fields are copied, not translated.
 - Not yet in the Joomla Extensions Directory; no update server yet.
 - Human (professional) translation orders are not supported yet (the WordPress plugin has them).

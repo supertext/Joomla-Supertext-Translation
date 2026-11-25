@@ -42,7 +42,8 @@ jobs:
       images-changed: ${{ steps.images.outputs.changed }}
     services:
       postgres:
-        image: postgres:19
+        # PostgreSQL 19 refuses Joomla 6.2's installer ("non-standard string literals are not supported"): stay on 18 until Joomla supports 19.
+        image: postgres:18
         env:
           POSTGRES_PASSWORD: postgres
         ports: ['5432:5432']
