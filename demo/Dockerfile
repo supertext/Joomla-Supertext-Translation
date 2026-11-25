@@ -6,7 +6,7 @@
 
 FROM php:8.5-apache
 
-ARG JOOMLA_VERSION=6.2.0
+ARG JOOMLA_VERSION=6.2.1
 ARG JOOMLA_LANGUAGES="de-CH fr-FR it-IT"
 
 RUN apt-get update \
