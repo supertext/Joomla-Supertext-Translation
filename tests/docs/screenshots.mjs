@@ -98,7 +98,7 @@ async function session(email, password) {
   await go('/administrator/index.php?option=com_plugins&view=plugins&filter[search]=Language Filter')
   await page.locator('a', { hasText: 'System - Language Filter' }).first().click()
   await page.waitForLoadState('networkidle')
-  const assoc = page.locator('.control-group', { has: page.locator('label', { hasText: /Item Associations/ }) }).first()
+  const assoc = page.locator('.control-group', { has: page.locator('.control-label', { hasText: /Item Associations/ }) }).first() // Joomla 6.2.1+: radio fields have a <span>, not a <label>
   await assoc.scrollIntoViewIfNeeded()
   await shot('language-filter', pad(await assoc.boundingBox(), 12))
   await page.locator('joomla-toolbar-button button', { hasText: /^\s*Close\s*$/ }).click()
