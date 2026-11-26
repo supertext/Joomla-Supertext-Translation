@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## Unreleased
 
+- Added: Indonesian, Romanian, Thai and Vietnamese (`id`, `ro`, `th`, `vi`) can be chosen as Supertext languages, all with formal and informal address (Supertext SDK 0.7.0).
 - Added: **Send configuration to Supertext** in the plugin settings (under *Test connection*, Super Users only): sends Supertext the installed extensions (name, version, enabled or not) and the Supertext language mapping, so Supertext support can help better. Nothing is sent while version information is off. All four interface languages. Supertext Plugin Health 0.4.0.
 - Changed: the screenshots in the guides show real Supertext translations (the E2E workflow takes them with the live API; version reports still go to the stand-in).
 - Added: tested with PHP 8.6 (the unit tests now run on PHP 8.2 to 8.6). CI and the demo use Joomla 6.2.1 instead of 6.2.0.
