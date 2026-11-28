@@ -4,7 +4,7 @@
 # Everything persistent is in PostgreSQL (DATABASE_URL), including configuration.php;
 # the container keeps no files between deploys. See docs/DEVELOPER.md -> Demo.
 
-FROM php:8.5-apache
+FROM php:8.5-apache@sha256:256c25149bca6639f538ece3c5dda90684409227dec546b87ca174950569b8f1
 
 ARG JOOMLA_VERSION=6.2.1
 ARG JOOMLA_LANGUAGES="de-CH fr-FR it-IT"
